@@ -18,6 +18,9 @@ from _thread import *
 from scapy.all import *
 from scapy.layers.inet import *
 import encryption
+# Set scapy to use libpcap library to circumvent iptables rules.
+from scapy.all import conf
+conf.use_pcap = True
 
 LOG_PATH = "log.txt"
 CONFIGURATION_PATH = "configuration.txt"

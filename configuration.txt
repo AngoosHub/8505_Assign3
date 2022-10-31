@@ -1,6 +1,6 @@
 # CONFIGURATION FILE
 #
-receiver_address=192.168.0.127
+receiver_address=192.168.1.182
 receiver_port1=6000
 receiver_port2=7000
 receiver_port3=8000
