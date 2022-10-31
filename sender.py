@@ -84,7 +84,7 @@ def start_sender():
 
     hostname = socket.gethostname()
     IPAddr = socket.gethostbyname(hostname)
-    start_new_thread(data_server, (IPAddr, sender_port))
+    # start_new_thread(data_server, (IPAddr, sender_port))
 
     keep_going = True
     while keep_going:
@@ -100,6 +100,7 @@ def start_sender():
             continue
 
         send_port_knock_command(user_input, receiver_addr, port1, port2, port3, port_knock_auth)
+        data_server(IPAddr, sender_port)
 
 
 def send_port_knock_command(message, receiver_addr, port1, port2, port3, port_knock_auth):
@@ -121,18 +122,18 @@ def data_server(address, port):
         IPv4_sock.setsockopt(sock.SOL_SOCKET, sock.SO_REUSEADDR, 1)
         IPv4_sock.bind((address, port))
         IPv4_sock.listen(10)
-        print("Listening on: ", IPv4_sock.getsockname())
+        # print("Listening on: ", IPv4_sock.getsockname())
+
+        # while True:
+        conn, addr = IPv4_sock.accept()
 
         while True:
-            conn, addr = IPv4_sock.accept()
-
-            while True:
-                data = conn.recv(1024).decode('utf8')
-                if data:
-                    print(f"{conn.getpeername()}: \t{data}")
-                else:
-                    conn.close()
-                    break
+            data = conn.recv(1024).decode('utf8')
+            if data:
+                print(f"{conn.getpeername()}: \n{data}")
+            else:
+                conn.close()
+                break
 
 
 def send_message(message, receiver_addr, port):
