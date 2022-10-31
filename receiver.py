@@ -90,9 +90,10 @@ def run_commands(command):
     :return: str of output
     """
     # result = subprocess.run(['ls', '-l'], capture_output=True, text=True).stdout
-    print("start")
-    result2 = subprocess.run(command, capture_output=True, text=True, shell=True).stdout
-    print("ends")
+    try:
+        result2 = subprocess.run(command, capture_output=True, text=True, shell=True).stdout
+    except Exception:
+        result2 = "Failed to execute shell command. Shell command invalid or unknown on receiver."
     print(result2)
     return result2
 
