@@ -154,16 +154,18 @@ def data_server(address, port):
         # while True:
         conn, addr = IPv4_sock.accept()
 
+        data_full = ''
         while True:
-            data = conn.recv(1024).decode('utf8')
+            data = conn.recv(1024).decode('utf-8')
             if data:
-                print(f"***{conn.getpeername()}***")
-                print(f"Encrypted Data: {data}")
-                decrypted_data = encryption.decrypt(data.encode('utf-8')).decode('utf-8')
-                print(f"Data: {decrypted_data}")
+                data_full += data
             else:
                 conn.close()
                 break
+        print(f"***{conn.getpeername()}***")
+        print(f"Encrypted Data: {data}")
+        decrypted_data = encryption.decrypt(data_full.encode('utf-8')).decode('utf-8')
+        print(f"Data: {decrypted_data}")
 
 
 if __name__ == "__main__":
