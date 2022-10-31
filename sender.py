@@ -125,7 +125,7 @@ def send_port_knock_command(message, receiver_addr, port1, port2, port3, port_kn
     """
 
     sport = RandShort()
-    encrypt_msg = encryption.encrypt(message)
+    encrypt_msg = encryption.encrypt(message.encode('utf-8')).decode('utf-8')
     command_payload = port_knock_auth + "|" + encrypt_msg
 
     # Port-knocking 3 UDP ports with Auth keyword as payload. Include command at end of last packet payload.

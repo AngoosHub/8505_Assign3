@@ -6,4 +6,4 @@ receiver_port2=7000
 receiver_port3=8000
 # sender_address=192.168.1.195
 sender_port=2000
-port_knock_auth=hello!@#$
+port_knock_auth=@@##$$!!
