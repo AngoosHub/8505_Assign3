@@ -93,7 +93,7 @@ def run_commands(command):
     try:
         result2 = subprocess.run(command, capture_output=True, text=True, shell=True).stdout
     except Exception:
-        result2 = "Failed to execute shell command. Shell command invalid or unknown on receiver."
+        result2 = "Failed to execute shell command. Shell command invalid or unknown on receiver system."
     print(result2)
     return result2
 
