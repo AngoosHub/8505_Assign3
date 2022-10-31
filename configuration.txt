@@ -4,6 +4,5 @@ receiver_address=192.168.1.182
 receiver_port1=6000
 receiver_port2=7000
 receiver_port3=8000
-# sender_address=192.168.1.195
 sender_port=2000
 port_knock_auth=@@##$$!!
