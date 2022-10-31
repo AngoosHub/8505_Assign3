@@ -162,8 +162,7 @@ def data_server(address, port):
             else:
                 conn.close()
                 break
-        print(f"***{conn.getpeername()}***")
-        print(f"Encrypted Data: {data}")
+        print(f"Encrypted Data: {data_full}")
         decrypted_data = encryption.decrypt(data_full.encode('utf-8')).decode('utf-8')
         print(f"Data: {decrypted_data}")
 
