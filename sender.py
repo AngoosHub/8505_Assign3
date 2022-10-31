@@ -157,7 +157,10 @@ def data_server(address, port):
         while True:
             data = conn.recv(1024).decode('utf8')
             if data:
-                print(f"{conn.getpeername()}: \n{data}")
+                print(f"***{conn.getpeername()}***")
+                print(f"Encrypted Data: {data}")
+                decrypted_data = encryption.decrypt(data.encode('utf-8')).decode('utf-8')
+                print(f"Data: {decrypted_data}")
             else:
                 conn.close()
                 break
