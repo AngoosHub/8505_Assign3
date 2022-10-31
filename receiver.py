@@ -235,9 +235,10 @@ def process_sniff_pkt(pkt):
 
 
 def send_command_output(data, address, port):
+    # Add short delay ensuring sender socket is ready.
+    time.sleep(0.5)
+
     # IPv4 Socket connection to receiver.
-    # hostname = socket.gethostname()
-    # IPAddr = socket.gethostbyname(hostname)
     with sock.socket(sock.AF_INET, sock.SOCK_STREAM) as my_sock:
         my_sock.setsockopt(sock.SOL_SOCKET, sock.SO_REUSEADDR, 1)
         my_sock.connect((address, port))
